@@ -3,6 +3,35 @@
 This project includes a no-install Android automation workflow.
 No helper app is installed on the phone; actions are executed through ADB only.
 
+## Environment Setup (Windows)
+
+1. Install ADB (Android Platform Tools):
+
+```powershell
+winget install --id Google.PlatformTools -s winget --accept-source-agreements --accept-package-agreements --disable-interactivity
+```
+
+2. Create Python virtual environment:
+
+```powershell
+py -m venv .venv
+```
+
+3. Install Python dependencies:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -U pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+4. Enable Android developer mode and USB debugging on your phone, then connect via USB.
+
+5. Verify device connectivity:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/check_device.py
+```
+
 ## Run (Python)
 
 Check device first:
