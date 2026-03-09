@@ -1,0 +1,23 @@
+serial: ''
+actions:
+- type: wait_until
+  # Set your trigger time here.
+  # Supports: "HH:MM:SS" / "HH:MM:SS.mmm" / "YYYY-mm-dd HH:MM:SS(.mmm)"
+  time: '14:45:00.000'
+
+- type: tap_then_if_changed_tap
+  first_x: 682
+  first_y: 2507
+  second_x: 1009
+  second_y: 2575
+  timeout_sec: 3.0
+  check_interval_sec: 0.08
+  change_ratio_threshold: 0.015
+  tap_on_timeout: true
+  debug_ratio_log: true
+  debug_show_touches: true
+  min_detect_delay_sec: 0.35
+  required_consecutive_hits: 2
+
+- type: screenshot
+  path: output/maoyan_timed_after_click.png

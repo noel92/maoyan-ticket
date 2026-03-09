@@ -1,0 +1,27 @@
+# Generic flow example. For ticket rush, prefer configs/maoyan_fast_click.yaml
+# Optional device serial. Leave empty to use the first connected device.
+serial: ""
+
+actions:
+  - type: wait
+    seconds: 0.5
+
+  - type: tap
+    x: 540
+    y: 1800
+
+  - type: rapid_tap
+    x: 540
+    y: 1800
+    duration_sec: 2
+    interval_ms: 25
+
+  - type: screenshot
+    path: "output/last_screen.png"
+
+# Optional visual click step (requires template image in templates/)
+#  - type: click_image
+#    template: "templates/buy_now.png"
+#    threshold: 0.86
+#    timeout_sec: 12
+#    interval_sec: 0.5
