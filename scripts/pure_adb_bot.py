@@ -155,6 +155,16 @@ def tap_then_if_changed_tap(
     min_detect_delay_sec: float = 0.30,
     required_consecutive_hits: int = 2,
     debug_show_touches: bool = False,
+    post_second_enable: bool = True,
+    post_second_detect_timeout_sec: float = 1.5,
+    post_second_check_interval_sec: float = 0.05,
+    post_second_change_ratio_threshold: float = 0.012,
+    post_second_min_detect_delay_sec: float = 0.15,
+    post_second_required_consecutive_hits: int = 1,
+    post_second_burst_duration_sec: float = 3.0,
+    post_second_burst_interval_ms: int = 15,
+    post_second_burst_on_timeout: bool = False,
+    debug_post_second_ratio_log: bool = False,
 ):
     if timeout_sec <= 0:
         raise RuntimeError('tap_then_if_changed_tap timeout_sec must be > 0')
@@ -166,12 +176,92 @@ def tap_then_if_changed_tap(
         raise RuntimeError('tap_then_if_changed_tap min_detect_delay_sec must be >= 0')
     if required_consecutive_hits < 1:
         raise RuntimeError('tap_then_if_changed_tap required_consecutive_hits must be >= 1')
+    if post_second_detect_timeout_sec <= 0:
+        raise RuntimeError('tap_then_if_changed_tap post_second_detect_timeout_sec must be > 0')
+    if post_second_check_interval_sec <= 0:
+        raise RuntimeError('tap_then_if_changed_tap post_second_check_interval_sec must be > 0')
+    if post_second_change_ratio_threshold <= 0:
+        raise RuntimeError('tap_then_if_changed_tap post_second_change_ratio_threshold must be > 0')
+    if post_second_min_detect_delay_sec < 0:
+        raise RuntimeError('tap_then_if_changed_tap post_second_min_detect_delay_sec must be >= 0')
+    if post_second_required_consecutive_hits < 1:
+        raise RuntimeError('tap_then_if_changed_tap post_second_required_consecutive_hits must be >= 1')
+    if post_second_burst_duration_sec <= 0:
+        raise RuntimeError('tap_then_if_changed_tap post_second_burst_duration_sec must be > 0')
+    if post_second_burst_interval_ms < 1:
+        raise RuntimeError('tap_then_if_changed_tap post_second_burst_interval_ms must be >= 1')
 
     previous_show_touches = None
     if debug_show_touches:
         previous_show_touches = get_system_setting(adb, serial, 'show_touches')
         set_system_setting(adb, serial, 'show_touches', '1')
         print('[INFO] debug show_touches=1 enabled')
+
+    def detect_second_jump_and_burst(base_img_for_second):
+        if not post_second_enable:
+            return
+
+        print('[INFO] second tap sent, waiting for next page change...')
+        start2 = time.perf_counter()
+        checks2 = 0
+        max_ratio2 = 0.0
+        hits2 = 0
+
+        while time.perf_counter() - start2 <= post_second_detect_timeout_sec:
+            elapsed2 = time.perf_counter() - start2
+            curr2 = capture_screen_image(adb, serial)
+            ratio2 = compute_change_ratio(base_img_for_second, curr2, roi=roi)
+            checks2 += 1
+            if ratio2 > max_ratio2:
+                max_ratio2 = ratio2
+            if debug_post_second_ratio_log:
+                print(f'[DEBUG] post-second ratio check={checks2} elapsed={elapsed2:.3f}s ratio={ratio2:.4f}')
+
+            if elapsed2 < post_second_min_detect_delay_sec:
+                time.sleep(post_second_check_interval_sec)
+                continue
+
+            if ratio2 >= post_second_change_ratio_threshold:
+                hits2 += 1
+            else:
+                hits2 = 0
+
+            if hits2 >= post_second_required_consecutive_hits:
+                rapid_tap(
+                    adb,
+                    serial,
+                    second_x,
+                    second_y,
+                    post_second_burst_duration_sec,
+                    post_second_burst_interval_ms,
+                )
+                print(
+                    f'[OK] post-second page changed ratio={ratio2:.4f}, '
+                    f'burst tap at ({second_x},{second_y}) for {post_second_burst_duration_sec}s'
+                )
+                return
+
+            time.sleep(post_second_check_interval_sec)
+
+        if post_second_burst_on_timeout:
+            rapid_tap(
+                adb,
+                serial,
+                second_x,
+                second_y,
+                post_second_burst_duration_sec,
+                post_second_burst_interval_ms,
+            )
+            print(
+                f'[WARN] post-second change timeout {post_second_detect_timeout_sec}s '
+                f'(max_ratio={max_ratio2:.4f}), forced burst tap'
+            )
+            return
+
+        print(
+            f'[WARN] post-second change timeout {post_second_detect_timeout_sec}s '
+            f'(max_ratio={max_ratio2:.4f}), skip burst tap'
+        )
 
     try:
         base_img = capture_screen_image(adb, serial)
@@ -202,20 +292,24 @@ def tap_then_if_changed_tap(
                 consecutive_hits = 0
 
             if consecutive_hits >= required_consecutive_hits:
+                base_img_for_second = curr_img.copy()
                 tap(adb, serial, second_x, second_y)
                 print(
                     f'[OK] page changed ratio={ratio:.4f} threshold={change_ratio_threshold:.4f} '
                     f'checks={checks}, hits={consecutive_hits}, second tap=({second_x},{second_y})'
                 )
+                detect_second_jump_and_burst(base_img_for_second)
                 return
             time.sleep(check_interval_sec)
 
         if tap_on_timeout:
+            base_img_for_second = capture_screen_image(adb, serial)
             tap(adb, serial, second_x, second_y)
             print(
                 f'[WARN] no page change in {timeout_sec}s (max_ratio={max_ratio:.4f}), '
                 f'forced second tap=({second_x},{second_y})'
             )
+            detect_second_jump_and_burst(base_img_for_second)
             return
 
         print(
@@ -442,6 +536,16 @@ def execute_actions(cfg: dict):
                 float(action.get('min_detect_delay_sec', 0.30)),
                 int(action.get('required_consecutive_hits', 2)),
                 bool(action.get('debug_show_touches', False)),
+                bool(action.get('post_second_enable', True)),
+                float(action.get('post_second_detect_timeout_sec', 1.5)),
+                float(action.get('post_second_check_interval_sec', 0.05)),
+                float(action.get('post_second_change_ratio_threshold', 0.012)),
+                float(action.get('post_second_min_detect_delay_sec', 0.15)),
+                int(action.get('post_second_required_consecutive_hits', 1)),
+                float(action.get('post_second_burst_duration_sec', 3.0)),
+                int(action.get('post_second_burst_interval_ms', 15)),
+                bool(action.get('post_second_burst_on_timeout', False)),
+                bool(action.get('debug_post_second_ratio_log', False)),
             )
         elif t == 'swipe':
             swipe(

@@ -121,3 +121,6 @@ D:/Dev/maoyan-ticket/.venv/Scripts/python.exe scripts/capture_tap_point.py --cap
 - `min_detect_delay_sec`: ignore early UI ripple after first tap (recommend `0.25~0.50`).
 - `required_consecutive_hits`: require N consecutive ratio hits before second tap (recommend `2`).
 - `debug_show_touches`: show touch dots during this action and auto-restore setting.
+- `post_second_enable`: after second tap, detect next-page change and trigger burst tapping.
+- `post_second_burst_duration_sec`: burst-tap duration on second coordinate (use `3.0` for your case).
+- `post_second_burst_interval_ms`: burst-tap interval (smaller = faster).

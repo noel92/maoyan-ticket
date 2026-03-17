@@ -15,5 +15,15 @@ actions:
   debug_show_touches: true
   min_detect_delay_sec: 0.35
   required_consecutive_hits: 2
+  post_second_enable: true
+  post_second_detect_timeout_sec: 1.5
+  post_second_check_interval_sec: 0.05
+  post_second_change_ratio_threshold: 0.012
+  post_second_min_detect_delay_sec: 0.15
+  post_second_required_consecutive_hits: 1
+  post_second_burst_duration_sec: 3.0
+  post_second_burst_interval_ms: 15
+  post_second_burst_on_timeout: false
+  debug_post_second_ratio_log: false
 - type: screenshot
   path: output/maoyan_after_click.png
