@@ -116,6 +116,7 @@ D:/Dev/maoyan-ticket/.venv/Scripts/python.exe scripts/capture_tap_point.py --cap
 `tap_then_if_changed_tap` key options:
 - `first_x/first_y`: first tap position (e.g., immediate purchase button).
 - `second_x/second_y`: second tap position (e.g., confirm button).
+- `third_x/third_y`: optional third tap position for alternating burst mode.
 - `change_ratio_threshold`: lower means more sensitive to page change (`0.010~0.020`).
 - `tap_on_timeout`: force second tap if no change is detected before timeout.
 - `min_detect_delay_sec`: ignore early UI ripple after first tap (recommend `0.25~0.50`).
@@ -124,3 +125,4 @@ D:/Dev/maoyan-ticket/.venv/Scripts/python.exe scripts/capture_tap_point.py --cap
 - `post_second_enable`: after second tap, detect next-page change and trigger burst tapping.
 - `post_second_burst_duration_sec`: burst-tap duration on second coordinate (use `3.0` for your case).
 - `post_second_burst_interval_ms`: burst-tap interval (smaller = faster).
+- `post_second_alternate_with_third`: when `true`, burst alternates between second and third coordinates.

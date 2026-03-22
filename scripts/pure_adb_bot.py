@@ -146,6 +146,8 @@ def tap_then_if_changed_tap(
     first_y: int,
     second_x: int,
     second_y: int,
+    third_x: int | None = None,
+    third_y: int | None = None,
     timeout_sec: float = 2.0,
     check_interval_sec: float = 0.08,
     change_ratio_threshold: float = 0.012,
@@ -163,6 +165,7 @@ def tap_then_if_changed_tap(
     post_second_required_consecutive_hits: int = 1,
     post_second_burst_duration_sec: float = 3.0,
     post_second_burst_interval_ms: int = 15,
+    post_second_alternate_with_third: bool = False,
     post_second_burst_on_timeout: bool = False,
     debug_post_second_ratio_log: bool = False,
 ):
@@ -190,12 +193,43 @@ def tap_then_if_changed_tap(
         raise RuntimeError('tap_then_if_changed_tap post_second_burst_duration_sec must be > 0')
     if post_second_burst_interval_ms < 1:
         raise RuntimeError('tap_then_if_changed_tap post_second_burst_interval_ms must be >= 1')
+    if post_second_alternate_with_third and (third_x is None or third_y is None):
+        raise RuntimeError('tap_then_if_changed_tap requires third_x/third_y when post_second_alternate_with_third=true')
 
     previous_show_touches = None
     if debug_show_touches:
         previous_show_touches = get_system_setting(adb, serial, 'show_touches')
         set_system_setting(adb, serial, 'show_touches', '1')
         print('[INFO] debug show_touches=1 enabled')
+
+    def run_post_second_burst():
+        if post_second_alternate_with_third:
+            deadline = time.perf_counter() + post_second_burst_duration_sec
+            taps = 0
+            use_second = True
+            while time.perf_counter() < deadline:
+                if use_second:
+                    tap(adb, serial, second_x, second_y)
+                else:
+                    tap(adb, serial, int(third_x), int(third_y))
+                use_second = not use_second
+                taps += 1
+                time.sleep(post_second_burst_interval_ms / 1000.0)
+            print(
+                f'[OK] post-second alternate burst taps={taps} '
+                f'points=({second_x},{second_y})<->({int(third_x)},{int(third_y)}) '
+                f'duration={post_second_burst_duration_sec}s interval={post_second_burst_interval_ms}ms'
+            )
+            return
+
+        rapid_tap(
+            adb,
+            serial,
+            second_x,
+            second_y,
+            post_second_burst_duration_sec,
+            post_second_burst_interval_ms,
+        )
 
     def detect_second_jump_and_burst(base_img_for_second):
         if not post_second_enable:
@@ -227,34 +261,21 @@ def tap_then_if_changed_tap(
                 hits2 = 0
 
             if hits2 >= post_second_required_consecutive_hits:
-                rapid_tap(
-                    adb,
-                    serial,
-                    second_x,
-                    second_y,
-                    post_second_burst_duration_sec,
-                    post_second_burst_interval_ms,
-                )
+                run_post_second_burst()
                 print(
-                    f'[OK] post-second page changed ratio={ratio2:.4f}, '
-                    f'burst tap at ({second_x},{second_y}) for {post_second_burst_duration_sec}s'
+                    f'[OK] post-second page changed ratio={ratio2:.4f}, burst tap '
+                    f'(alternate={post_second_alternate_with_third})'
                 )
                 return
 
             time.sleep(post_second_check_interval_sec)
 
         if post_second_burst_on_timeout:
-            rapid_tap(
-                adb,
-                serial,
-                second_x,
-                second_y,
-                post_second_burst_duration_sec,
-                post_second_burst_interval_ms,
-            )
+            run_post_second_burst()
             print(
                 f'[WARN] post-second change timeout {post_second_detect_timeout_sec}s '
-                f'(max_ratio={max_ratio2:.4f}), forced burst tap'
+                f'(max_ratio={max_ratio2:.4f}), forced burst tap '
+                f'(alternate={post_second_alternate_with_third})'
             )
             return
 
@@ -527,6 +548,8 @@ def execute_actions(cfg: dict):
                 int(action['first_y']),
                 int(action['second_x']),
                 int(action['second_y']),
+                int(action['third_x']) if 'third_x' in action else None,
+                int(action['third_y']) if 'third_y' in action else None,
                 float(action.get('timeout_sec', 2.0)),
                 float(action.get('check_interval_sec', 0.08)),
                 float(action.get('change_ratio_threshold', 0.012)),
@@ -544,6 +567,7 @@ def execute_actions(cfg: dict):
                 int(action.get('post_second_required_consecutive_hits', 1)),
                 float(action.get('post_second_burst_duration_sec', 3.0)),
                 int(action.get('post_second_burst_interval_ms', 15)),
+                bool(action.get('post_second_alternate_with_third', False)),
                 bool(action.get('post_second_burst_on_timeout', False)),
                 bool(action.get('debug_post_second_ratio_log', False)),
             )

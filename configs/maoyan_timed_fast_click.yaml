@@ -3,13 +3,16 @@ actions:
 - type: wait_until
   # Set your trigger time here.
   # Supports: "HH:MM:SS" / "HH:MM:SS.mmm" / "YYYY-mm-dd HH:MM:SS(.mmm)"
-  time: '22:23:00.000'
+  time: '11:40:00.000'
 
 - type: tap_then_if_changed_tap
   first_x: 682
   first_y: 2507
   second_x: 1009
   second_y: 2575
+  # Fill the third coordinate for alternate burst tapping after second-page change.
+  third_x: 610
+  third_y: 1660
   timeout_sec: 3.0
   check_interval_sec: 0.08
   change_ratio_threshold: 0.015
@@ -24,8 +27,9 @@ actions:
   post_second_change_ratio_threshold: 0.012
   post_second_min_detect_delay_sec: 0.15
   post_second_required_consecutive_hits: 1
-  post_second_burst_duration_sec: 3.0
+  post_second_burst_duration_sec: 60.0
   post_second_burst_interval_ms: 15
+  post_second_alternate_with_third: true
   post_second_burst_on_timeout: false
   debug_post_second_ratio_log: false
 
